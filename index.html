@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PSLE Chinese AL1 Mastery</title>
+    <style>
+        :root { --p: #c0392b; --s: #2c3e50; --bg: #f9f4f0; --white: #ffffff; }
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
+        .quiz-card { width: 100%; max-width: 500px; background: var(--white); padding: 20px; border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-top: 5px solid var(--p); }
+        .header { text-align: center; margin-bottom: 20px; }
+        .prog-bg { height: 6px; background: #eee; border-radius: 3px; margin-bottom: 20px; }
+        .prog-fill { height: 100%; background: var(--p); width: 0%; transition: 0.4s; }
+        .cat-tag { font-size: 0.8rem; font-weight: bold; color: var(--p); border: 1px solid var(--p); padding: 2px 8px; border-radius: 5px; }
+        .q-text { font-size: 1.2rem; font-weight: 600; margin: 20px 0; line-height: 1.6; color: var(--s); }
+        .opt-grid { display: flex; flex-direction: column; gap: 10px; }
+        .opt-btn { padding: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; text-align: left; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+        .opt-btn.selected { border-color: var(--p); background: #fdf2f2; color: var(--p); font-weight: bold; }
+        .feedback { margin-top: 15px; padding: 15px; border-radius: 10px; display: none; line-height: 1.5; font-size: 0.95rem; }
+        .feedback.correct { display: block; background: #e9f7ef; color: #1e8449; border: 1px solid #2ecc71; }
+        .feedback.wrong { display: block; background: #fdedec; color: #943126; border: 1px solid #e74c3c; }
+        button.main-btn { width: 100%; padding: 16px; border-radius: 10px; border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 20px; }
+        .confirm { background: var(--s); color: white; }
+        .confirm:disabled { opacity: 0.3; }
+        .next { background: var(--p); color: white; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="quiz-card">
+    <div id="quiz-ui">
+        <div class="header">
+            <h2 style="margin:0; color:var(--p)">小六华文：冲刺AL1</h2>
+            <p id="q-counter" style="color:#666; font-size:0.9rem;">Bitesize 10 Qns</p>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="prog-bar"></div></div>
+
+        <div id="question-area">
+            <span class="cat-tag" id="q-cat"></span>
+            <div class="q-text" id="q-text"></div>
+            <div class="opt-grid" id="opt-grid"></div>
+            <div id="feedback" class="feedback"></div>
+            <div class="btn-group">
+                <button id="btn-confirm" class="main-btn confirm" disabled onclick="confirmAnswer()">确定 (Confirm)</button>
+                <button id="btn-next" class="main-btn next" onclick="nextQuestion()">下一题 (Next)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-ui" style="display:none; text-align:center;">
+        <h2 style="color:var(--p)">练习结束！</h2>
+        <h1 id="final-score" style="font-size:3.5rem;">0/10</h1>
+        <button class="main-btn confirm" onclick="generateNewSet()">再挑战 10 题</button>
+    </div>
+</div>
+
+<script>
+    const fullBank = [
+        { 
+            "category": "辨析字 (Character Diff)", 
+            "question": "我们要仔细分________事情的是非，不能随波逐流。", 
+            "options": ["辩", "辨", "瓣", "办"], 
+            "correctIdx": 1, 
+            "explanation": "【辨】(biàn) 意思是辨别、区分。'辩'是辩论，'瓣'是花瓣。" 
+        },
+        { 
+            "category": "词语搭配 (Collocation)", 
+            "question": "既然你已经犯了错，就应该勇于________责任。", 
+            "options": ["承担", "担任", "承受", "承办"], 
+            "correctIdx": 0, 
+            "explanation": "承担 (chéng dān) 责任是固定搭配。承受通常接'压力'或'打击'。" 
+        },
+        { 
+            "category": "关联词 (Connectors)", 
+            "question": "________明天的比赛有多困难，我也不会轻易放弃。", 
+            "options": ["既然", "无论", "即使", "虽然"], 
+            "correctIdx": 1, 
+            "explanation": "无论...也... 表示条件不同，结果不变。常用：'无论...都/也'。" 
+        },
+        { 
+            "category": "成语 (Idioms)", 
+            "question": "他虽然遇到了很多困难，但依然________，最终完成了任务。", 
+            "options": ["半途而废", "锲而不舍", "画蛇添足", "口是心非"], 
+            "correctIdx": 1, 
+            "explanation": "锲而不舍 (qiè ér bù shě) 形容有恒心，有毅力。半途而废是反义词。" 
+        },
+        { 
+            "category": "语文应用 (Vocab)", 
+            "question": "经过几天的休息，他的精神终于逐渐________了。", 
+            "options": ["复原", "恢复", "重复", "往返"], 
+            "correctIdx": 1, 
+            "explanation": "恢复 (huī fù) 精神/健康。复原多用于受伤或建筑。" 
+        },
+        { 
+            "category": "辨析字 (Character Diff)", 
+            "question": "他做事向来非常________慎，从不马虎。", 
+            "options": ["谨", "勤", "仅", "勤"], 
+            "correctIdx": 0, 
+            "explanation": "谨慎 (jǐn shèn) 表示小心慎重。'仅'是仅仅（only）。" 
+        },
+        { 
+            "category": "成语 (Idioms)", 
+            "question": "老师语重心长地劝导他，但他却把老师的话当成________，完全不放在心上。", 
+            "options": ["耳边风", "及时雨", "顺风车", "挡箭牌"], 
+            "correctIdx": 0, 
+            "explanation": "耳边风：比喻听到后不放在心上，不当回事。" 
+        },
+        { 
+            "category": "词语搭配 (Collocation)", 
+            "question": "这里的景色迷人，空气________，是个度假的好地方。", 
+            "options": ["清晰", "清爽", "清新", "清洁"], 
+            "correctIdx": 2, 
+            "explanation": "空气清新 (qīng xīn) 是固定搭配。清晰多指视力或声音。" 
+        },
+        { 
+            "category": "关联词 (Connectors)", 
+            "question": "他________自己受委屈，也不愿让好朋友难堪。", 
+            "options": ["与其", "宁可", "哪怕", "只有"], 
+            "correctIdx": 1, 
+            "explanation": "宁可...也... 表示为了某种目的而选某项，即使不乐意。与其...不如...则是舍前取后。" 
+        },
+        { 
+            "category": "辨析字 (Character Diff)", 
+            "question": "大家应该互相________，共同把班级卫生搞好。", 
+            "options": ["配合", "陪衬", "配置", "陪伴"], 
+            "correctIdx": 0, 
+            "explanation": "配合 (pèi hé) 侧重于分工合作。陪伴是随同。" 
+        },
+      {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "他虽然很不情愿，但还是勉【强】答应了学长的要求。选出“强”的正确读音。",
+    "options": ["qiǎng", "qiáng", "jiàng", "qiāng"],
+    "correctIdx": 0,
+    "explanation": "【勉强】(miǎn qiǎng) 表示非自愿。'强'在此读三声。坚强读二声(qiáng)，倔强读四声(jiàng)。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "他的样子看上去和他的哥哥相【似】。选出“似”的正确读音。",
+    "options": ["sì", "shì", "sǐ", "shǐ"],
+    "correctIdx": 0,
+    "explanation": "【相似】读 sì。只有在'似的'(shì de)这个词中才读 shì。这是PSLE最常考的陷阱之一。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "昨晚爸爸在办公室加班，忙得整夜没回家，住了一【宿】。选出“宿”的正确读音。",
+    "options": ["xiǔ", "sù", "xiù", "sū"],
+    "correctIdx": 0,
+    "explanation": "【一宿】(yì xiǔ) 指一个晚上。宿舍读 sù，星宿读 xiù。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "我们要有这种【锲】而不舍的精神，才能克服困难。选出“锲”的正确读音。",
+    "options": ["qiè", "qì", "xiè", "qiě"],
+    "correctIdx": 0,
+    "explanation": "【锲而不舍】(qiè ér bù shě)。学生常因为字形误读为 qì 或 xiè。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "他说话总是一副【挑】剔的样子，让人很难和他相处。选出“挑”的正确读音。",
+    "options": ["tiāo", "tiǎo", "tiáo", "tiào"],
+    "correctIdx": 0,
+    "explanation": "【挑剔】(tiāo tì)。挑战或挑选时读 tiǎo。这里指挑选毛病，读第一声。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "这种药的功效很大，能有效治【愈】你的病。选出“愈”的正确读音。",
+    "options": ["yù", "yuè", "yǔ", "yū"],
+    "correctIdx": 0,
+    "explanation": "【治愈】(zhì yù)。注意不要和'越'(yuè)混淆。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "听到老师的叫唤，他随声大【应】了一句。选出“应”的正确读音。",
+    "options": ["yìng", "yīng", "yíng", "yǐng"],
+    "correctIdx": 0,
+    "explanation": "【应】(yìng) 在此指回答、响应。应该是 yīng (第一声)。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "这件事【教】训了我们要诚实，不能弄虚作假。选出“教”的正确读音。",
+    "options": ["jiào", "jiāo", "jiǎo", "jiào"],
+    "correctIdx": 0,
+    "explanation": "【教训】(jiào xun)。教书、教唱歌读第一声 jiāo。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "他性格【倔】强，决定了的事情谁也劝不动。选出“倔”的正确读音。",
+    "options": ["jué", "juè", "jué", "juē"],
+    "correctIdx": 1,
+    "explanation": "【倔强】(jué jiàng)。注意'倔'在标准P5/P6口语及考试中，倔强读作 jué jiàng。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "这些产品质【量】优良，值得大家放心购买。选出“量”的正确读音。",
+    "options": ["liàng", "liáng", "liǎng", "liāng"],
+    "correctIdx": 0,
+    "explanation": "【质量】(zhì liàng)。量重量、量长度读第二声 liáng。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "我们要仔细分________事情的是非，不能随波逐流。",
+    "options": ["辨", "辩", "瓣", "办"],
+    "correctIdx": 0,
+    "explanation": "【分辨】用眼睛看(目)，侧重区别。'辩论'用言字旁(言)。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "由于突降暴雨，学校运动会只能被迫中________。",
+    "options": ["止", "制", "治", "至"],
+    "correctIdx": 0,
+    "explanation": "【中止】指因干扰而停止。'终止'是彻底结束。'制止'是强行让别人停下。"
+  },
+  {
+    "category": "词语搭配 (Collocation)",
+    "question": "环保团体不断________大家要减少使用塑料袋，保护地球。",
+    "options": ["呼吁", "号召", "提示", "提醒"],
+    "correctIdx": 0,
+    "explanation": "【呼吁】(hū yù) 指向大众请求援助或采取行动。'号召'通常由领袖或机构发出。"
+  },
+  {
+    "category": "关联词 (Connectors)",
+    "question": "他________自己吃亏，也不愿去做那些损人利己的事情。",
+    "options": ["宁可", "与其", "哪怕", "既然"],
+    "correctIdx": 0,
+    "explanation": "【宁可...也...】表示在对比中选取那一项。与其...不如...则是放弃前者选择后者。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "大家________地在图书馆里阅读，不敢发出一点声响。",
+    "options": ["屏息敛声", "聚精会神", "兴高采烈", "得意忘形"],
+    "correctIdx": 1,
+    "explanation": "【聚精会神】注意力高度集中。屏息敛声形容不敢出声，但此句语境更强调专注。"
+  },
+  {
+    "category": "词义选择 (Meaning)",
+    "question": "看到这个意外的结果，大家都感到非常【诧异】。选出‘诧异’的含义。",
+    "options": ["奇怪、惊讶", "愤怒", "难过", "害怕"],
+    "correctIdx": 0,
+    "explanation": "【诧异】(chà yì) 意思是觉得十分奇怪、不寻常。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "这里的景色迷人，空气________新，是个度假的好地方。",
+    "options": ["清", "青", "轻", "情"],
+    "correctIdx": 0,
+    "explanation": "【清新】指干净、新鲜。'青'指颜色，'轻'指重量。"
+  },
+  {
+    "category": "词语搭配 (Collocation)",
+    "question": "这项慈善活动的所有收益，将全部________给贫困的学生。",
+    "options": ["捐赠", "赠送", "捐献", "缴付"],
+    "correctIdx": 0,
+    "explanation": "【捐赠】(juān zèng) 多用于正式的慈善捐款或物资。'赠送'是普通礼品往来。"
+  },
+  {
+    "category": "关联词 (Connectors)",
+    "question": "________明天的户外课取消了，我也不会感到失望。",
+    "options": ["即使", "尽管", "虽然", "既然"],
+    "correctIdx": 0,
+    "explanation": "【即使...也...】表示假设的让步。尽管用于已知事实。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "在辩论会上，双方参赛者________，谁也不肯示弱。",
+    "options": ["针锋相对", "唇齿相依", "口是心非", "半途而废"],
+    "correctIdx": 0,
+    "explanation": "【针锋相对】(zhēn fēng xiāng duì) 比喻观点或行动尖锐对立。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "他________着头，正在反省自己的过错。",
+    "options": ["低", "底", "抵", "弟"],
+    "correctIdx": 0,
+    "explanation": "【低头】向下看。'底'指最底部（鞋底、海底）。"
+  },
+  {
+    "category": "词语选择 (Vocabulary)",
+    "question": "由于他在科学领域的杰出________，他获得了这项国际大奖。",
+    "options": ["贡献", "奉献", "牺牲", "表现"],
+    "correctIdx": 0,
+    "explanation": "【贡献】(gòng xiàn) 用于对社会、科学或国家做出的重大功绩。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "面对挫折，他从未【丧】失信心。选出“丧”的正确读音。",
+    "options": ["sàng", "sāng", "shàng", "shāng"],
+    "correctIdx": 0,
+    "explanation": "【丧失】读 sàng (四声)。办丧事读 sāng (一声)。"
+  },
+  {
+    "category": "词义选择 (Meaning)",
+    "question": "他对自己要求非常【严格】。选出‘严格’的含义。",
+    "options": ["认真、不马虎", "严厉、可怕", "严肃、不笑", "严重、可怕"],
+    "correctIdx": 0,
+    "explanation": "【严格】(yán gé) 在遵守制度或要求时认真。'严厉'多形容态度或处罚。"
+  },
+  {
+    "category": "关联词 (Connectors)",
+    "question": "我________在家里空等消息，________主动出去寻找机会。",
+    "options": ["与其...不如", "宁可...也", "虽然...但是", "哪怕...也"],
+    "correctIdx": 0,
+    "explanation": "【与其...不如】表示通过比较后舍弃前者，选择后者。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "这座摩天大楼建筑得非常________大。",
+    "options": ["庞", "宠", "龙", "笼"],
+    "correctIdx": 0,
+    "explanation": "【庞大】(páng dà) 形容体积或数量极大。'宠'是宠物。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "只要我们能够________，就一定能克服目前的难关。",
+    "options": ["齐心协力", "半途而废", "自相矛盾", "斤斤计较"],
+    "correctIdx": 0,
+    "explanation": "【齐心协力】(qí xīn xié lì) 思想一致，共同努力。"
+  },
+  {
+    "category": "词语搭配 (Collocation)",
+    "question": "这种药的药性很强，能有效________疼痛。",
+    "options": ["缓解", "化解", "解决", "解答"],
+    "correctIdx": 0,
+    "explanation": "【缓解】(huǎn jiě) 疼痛/压力。'化解'用于矛盾/恩怨。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "在这个关键时刻，你千万不能________缩。",
+    "options": ["退", "腿", "堆", "追"],
+    "correctIdx": 0,
+    "explanation": "【退缩】(tuì suō) 向后缩，畏难。'腿'是身体部位。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "既然你答【应】了别人，就一定要信守诺言。选出“应”的正确读音。",
+    "options": ["yìng", "yīng", "yíng", "yǐng"],
+    "correctIdx": 0,
+    "explanation": "【答应】读 yìng。应该是 yīng。这是考试中非常高频的多音字。"
+  },
+  {
+    "category": "词语选择 (Vocabulary)",
+    "question": "由于他经常逃课，他的行为已经________了校规。",
+    "options": ["触犯", "侵犯", "犯人", "妨碍"],
+    "correctIdx": 0,
+    "explanation": "【触犯】(chù fàn) 校规/法律。'侵犯'用于权利/领土。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "听到老师的赞美，他不禁________，脸上的笑容止都止不住。",
+    "options": ["心花怒放", "垂头丧气", "犹豫不决", "目瞪口呆"],
+    "correctIdx": 0,
+    "explanation": "【心花怒放】(xīn huā nù fàng) 心情极其愉快。"
+  },
+  {
+    "category": "辨析字 (Character Diff)",
+    "question": "大家应该互相________，共同把班级卫生搞好。",
+    "options": ["配合", "陪衬", "陪同", "配置"],
+    "correctIdx": 0,
+    "explanation": "【配合】(pèi hé) 相互协作。'陪伴/陪同'是跟着某人。"
+  },
+  {
+    "category": "词义选择 (Meaning)",
+    "question": "老师【语重心长】地劝导我们。选出‘语重心长’的含义。",
+    "options": ["言辞诚恳且意味深长", "说话声音很大", "说话时间很久", "说话非常严厉"],
+    "correctIdx": 0,
+    "explanation": "【语重心长】(yǔ zhòng xīn cháng) 言辞恳切，感情深厚。"
+  },
+  {
+    "category": "关联词 (Connectors)",
+    "question": "这种植物________生命力顽强，________能美化环境。",
+    "options": ["不仅...还", "既然...就", "只要...就", "虽然...但"],
+    "correctIdx": 0,
+    "explanation": "【不仅...还】是递进关系。先说一个优点，再加上另一个优点。"
+  },
+  {
+    "category": "辨析字 (Character Diff)",
+    "question": "这种药的________效很好，你服用后很快就会好转。",
+    "options": ["功", "攻", "工", "共"],
+    "correctIdx": 0,
+    "explanation": "【功效】(gōng xiào) 功能、效率。'攻击'用攻，'工厂'用工。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "他做事向来________，哪怕是微小的细节也不放过。",
+    "options": ["一丝不苟", "粗心大意", "自私自利", "半途而废"],
+    "correctIdx": 0,
+    "explanation": "【一丝不苟】(yì sī bù gǒu) 形容办事认真，一点也不马虎。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "这件事给了我很大的【启】示。选出“启”的正确读音。",
+    "options": ["qǐ", "qǐ", "qí", "qì"],
+    "correctIdx": 0,
+    "explanation": "【启示】(qǐ shì)。注意它是第三声。"
+  },
+  {
+    "category": "辨字练习 (Character Diff)",
+    "question": "他________在校门口，等待着朋友的出现。",
+    "options": ["伫", "注", "柱", "住"],
+    "correctIdx": 0,
+    "explanation": "【伫立】(zhù lì) 长时间站着。'注视'用注，'住处'用住。"
+  },
+  {
+    "category": "词语选择 (Vocabulary)",
+    "question": "为了提高华语________能力，我们要多听多讲。",
+    "options": ["表达", "表现", "表示", "表明"],
+    "correctIdx": 0,
+    "explanation": "【表达】(biǎo dá) 思想或感受。'表现'多指行为或水平。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "如果你现在不好好努力，等老了才后悔，那就________了。",
+    "options": ["悔之已晚", "未雨绸缪", "持之以恒", "全力以赴"],
+    "correctIdx": 0,
+    "explanation": "【悔之已晚】(huǐ zhī yǐ wǎn) 后悔已经来不及了。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "听到这个笑话，他不禁发出呵呵的【傻】笑。选出“傻”的正确读音。",
+    "options": ["shǎ", "shà", "sǎ", "shá"],
+    "correctIdx": 0,
+    "explanation": "【傻】(shǎ) 第三声。注意声母是 sh。"
+  },
+  {
+    "category": "辨析字 (Character Diff)",
+    "question": "这里的水非常清________，一眼就能看到水底。",
+    "options": ["澈", "撤", "侧", "测"],
+    "correctIdx": 0,
+    "explanation": "【清澈】(qīng chè) 形容水净洁透明。'撤退'用撤。"
+  },
+  {
+    "category": "关联词 (Connectors)",
+    "question": "________你遇到了困难，________应该勇于面对它。",
+    "options": ["即使...也", "既然...就", "只要...就", "虽然...但"],
+    "correctIdx": 0,
+    "explanation": "【即使...也】表示让步假设。即便有困难（还没发生或假设的程度），也要面对。"
+  },
+  {
+    "category": "词语搭配 (Collocation)",
+    "question": "由于他出色的工作表现，公司决定对他进行________。",
+    "options": ["表彰", "表示", "表面", "表现"],
+    "correctIdx": 0,
+    "explanation": "【表彰】(biǎo zhāng) 公开表扬并给予奖励。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "这件事还没决定，你千万不要________，以免引起误会。",
+    "options": ["轻举妄动", "胸有成竹", "名胜古迹", "口是心非"],
+    "correctIdx": 0,
+    "explanation": "【轻举妄动】(qīng jǔ wàng dòng) 指不经慎重考虑就随便行动。"
+  },
+  {
+    "category": "汉语拼音 (Pinyin)",
+    "question": "如果你能【改】掉这个坏习惯，大家会更喜欢你。选出“改”的正确读音。",
+    "options": ["gǎi", "gài", "gāi", "kǎi"],
+    "correctIdx": 0,
+    "explanation": "【改】(gǎi) 第三声。"
+  },
+  {
+    "category": "辨析字 (Character Diff)",
+    "question": "这件事真是有________思，让我想了很久。",
+    "options": ["意", "义", "艺", "议"],
+    "correctIdx": 0,
+    "explanation": "【意思】指有趣。'意义'通常指重要性（价值）。"
+  },
+  {
+    "category": "词语选择 (Vocabulary)",
+    "question": "老师希望我们能够________知识的海洋，不断学习。",
+    "options": ["漫游", "游览", "游行", "游子"],
+    "correctIdx": 0,
+    "explanation": "【漫游】(màn yóu) 随意游历。'漫游知识海洋'是常见比喻。"
+  },
+  {
+    "category": "成语 (Idioms)",
+    "question": "他做事总是________，结果总是不能把事情做完。",
+    "options": ["半途而废", "锲而不舍", "持之以恒", "百折不挠"],
+    "correctIdx": 0,
+    "explanation": "【半途而废】(bàn tú ér fèi) 做事不能坚持到底。"
+  }
+    ];
+
+    let currentSet = [];
+    let currentIdx = 0;
+    let score = 0;
+    let selectedIdx = null;
+
+    function generateNewSet() {
+        score = 0;
+        currentIdx = 0;
+        // Shuffle and slice 10 (though we only have 10 now, this is expandable)
+        currentSet = [...fullBank].sort(() => 0.5 - Math.random()).slice(0, 10);
+        document.getElementById('result-ui').style.display = 'none';
+        document.getElementById('quiz-ui').style.display = 'block';
+        showQuestion();
+    }
+
+    function showQuestion() {
+        const q = currentSet[currentIdx];
+        document.getElementById('q-counter').innerText = `第 ${currentIdx + 1} 题 / 共 10 题`;
+        document.getElementById('prog-bar').style.width = `${(currentIdx / 10) * 100}%`;
+        document.getElementById('q-cat').innerText = q.category;
+        document.getElementById('q-text').innerText = q.question;
+        
+        const grid = document.getElementById('opt-grid');
+        grid.innerHTML = '';
+        selectedIdx = null;
+        
+        document.getElementById('feedback').style.display = 'none';
+        document.getElementById('btn-confirm').style.display = 'block';
+        document.getElementById('btn-confirm').disabled = true;
+        document.getElementById('btn-next').style.display = 'none';
+
+        q.options.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'opt-btn';
+            btn.innerText = `${i + 1}. ${opt}`;
+            btn.onclick = () => {
+                selectedIdx = i;
+                document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                document.getElementById('btn-confirm').disabled = false;
+            };
+            grid.appendChild(btn);
+        });
+    }
+
+    function confirmAnswer() {
+        const q = currentSet[currentIdx];
+        const isCorrect = selectedIdx === q.correctIdx;
+        if(isCorrect) score++;
+
+        const fb = document.getElementById('feedback');
+        fb.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+        fb.innerHTML = `<strong>${isCorrect ? '答对了！✓' : '答错了 ✗'}</strong><br>${q.explanation}`;
+        fb.style.display = 'block';
+
+        document.getElementById('btn-confirm').style.display = 'none';
+        document.getElementById('btn-next').style.display = 'block';
+        document.querySelectorAll('.opt-btn').forEach(b => b.style.pointerEvents = 'none');
+    }
+
+    function nextQuestion() {
+        currentIdx++;
+        if(currentIdx < 10) showQuestion();
+        else {
+            document.getElementById('quiz-ui').style.display = 'none';
+            document.getElementById('result-ui').style.display = 'block';
+            document.getElementById('final-score').innerText = `${score} / 10`;
+        }
+    }
+
+    window.onload = generateNewSet;
+</script>
+</body>
+</html>
