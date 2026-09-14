@@ -146,7 +146,7 @@
     <div id="quiz-ui">
         <div class="header">
             <h2 style="margin:0; color:var(--p)">小六华文：冲刺AL1</h2>
-            <p id="q-counter" style="color:#666; font-size:0.9rem;">Bitesize 10 Qns</p>
+            <p id="q-counter" style="color:#666; font-size:0.9rem;">Bitesize 12 Qns</p>
         </div>
         <div class="prog-bg"><div class="prog-fill" id="prog-bar"></div></div>
 
@@ -164,8 +164,8 @@
 
     <div id="result-ui" style="display:none; text-align:center;">
         <h2 style="color:var(--p)">练习结束！</h2>
-        <h1 id="final-score" style="font-size:3.5rem;">0/10</h1>
-        <button class="main-btn confirm" onclick="generateNewSet()">再挑战 10 题</button>
+        <h1 id="final-score" style="font-size:3.5rem;">0/12</h1>
+        <button class="main-btn confirm" onclick="generateNewSet()">再挑战 12 题</button>
     </div>
 </div>
 
@@ -11341,7 +11341,7 @@
         score = 0;
         currentIdx = 0;
         // Shuffle and slice 10 (though we only have 10 now, this is expandable)
-        currentSet = [...fullBank].sort(() => 0.5 - Math.random()).slice(0, 10);
+        currentSet = [...fullBank].sort(() => 0.5 - Math.random()).slice(0, 12);
         document.getElementById('result-ui').style.display = 'none';
         document.getElementById('quiz-ui').style.display = 'block';
         showQuestion();
@@ -11349,8 +11349,8 @@
 
     function showQuestion() {
         const q = currentSet[currentIdx];
-        document.getElementById('q-counter').innerText = `第 ${currentIdx + 1} 题 / 共 10 题`;
-        document.getElementById('prog-bar').style.width = `${(currentIdx / 10) * 100}%`;
+        document.getElementById('q-counter').innerText = `第 ${currentIdx + 1} 题 / 共 12 题`;
+        document.getElementById('prog-bar').style.width = `${(currentIdx / 12) * 100}%`;
         document.getElementById('q-cat').innerText = q.category;
         document.getElementById('q-text').innerText = q.question;
         
@@ -11394,11 +11394,11 @@
 
     function nextQuestion() {
         currentIdx++;
-        if(currentIdx < 10) showQuestion();
+        if(currentIdx < 12) showQuestion();
         else {
             document.getElementById('quiz-ui').style.display = 'none';
             document.getElementById('result-ui').style.display = 'block';
-            document.getElementById('final-score').innerText = `${score} / 10`;
+            document.getElementById('final-score').innerText = `${score} / 12`;
         }
     }
 
