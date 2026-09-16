@@ -165,6 +165,8 @@
     <div id="result-ui" style="display:none; text-align:center;">
         <h2 style="color:var(--p)">练习结束！</h2>
         <h1 id="final-score" style="font-size:3.5rem;">0/12</h1>
+        <!-- Add this timestamp container -->
+    <p id="timestamp" style="font-size: 0.8rem; color: #718096;"></p>
         <button class="main-btn confirm" onclick="generateNewSet()">再挑战 12 题</button>
     </div>
 </div>
@@ -11399,6 +11401,15 @@
             document.getElementById('quiz-ui').style.display = 'none';
             document.getElementById('result-ui').style.display = 'block';
             document.getElementById('final-score').innerText = `${score} / 12`;
+            // Generate Timestamp
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-SG', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    });
+    const formattedTime = now.toLocaleTimeString('en-SG', { 
+        hour: '2-digit', minute: '2-digit' 
+    });
+    document.getElementById('timestamp').innerText = `Completed on ${formattedDate} at ${formattedTime}`;
         }
     }
 
